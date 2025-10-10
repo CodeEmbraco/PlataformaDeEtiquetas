@@ -3,33 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <title>Sistema de Escaneo de Etiquetas</title>
-  <link rel="stylesheet" href="menu.css">
   <style>
-    main {
-      margin-left: 0px;
-      padding: 20px;
+    body {
+      margin: 0;
+      background-color: #ffffff;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #f5f6fa;
+      position: relative;
+    }
+
+    /* Logo en la esquina superior izquierda */
+    .logo-container {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+    }
+
+    .logo-container img {
+      height: 60px;
+      width: auto;
+    }
+
+    main {
+      padding: 20px;
+      background-color: #ffffff;
       height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     .scanner {
-      background: #fff;
-      border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-      padding: 30px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      padding: 40px;
       max-width: 500px;
-      margin: 50px auto;
+      width: 100%;
       text-align: center;
+      border: 2px solid #008000;
+    }
+
+    h2 {
+      color: #008000;
+      margin-bottom: 20px;
     }
 
     input[type="text"] {
       width: 80%;
-      padding: 10px;
+      padding: 12px;
       font-size: 1.1em;
-      border: 1px solid #ccc;
-      border-radius: 5px;
+      border: 2px solid #008000;
+      border-radius: 6px;
       text-align: center;
+      outline: none;
+      transition: box-shadow 0.3s, border 0.3s;
+    }
+
+    input[type="text"]:focus {
+      border-color: #00b300;
+      box-shadow: 0 0 6px #00b300;
     }
 
     button {
@@ -37,31 +69,40 @@
       padding: 10px 20px;
       font-size: 1em;
       border: none;
-      border-radius: 5px;
-      background-color: #0078d7;
-      color: white;
+      border-radius: 6px;
+      background-color: #008000;
+      color: #ffffff;
       cursor: pointer;
-      transition: background 0.3s;
+      transition: background 0.3s, transform 0.1s;
     }
 
     button:hover {
-      background-color: #005fa3;
+      background-color: #00b300;
+      transform: scale(1.03);
     }
 
     .label-display {
       margin-top: 30px;
       padding: 15px;
-      border: 1px solid #ddd;
+      border: 2px solid #008000;
       border-radius: 10px;
-      background-color: #fafafa;
+      background-color: #f9fff9;
       display: none;
       text-align: left;
+    }
+
+    .label-display h3 {
+      color: #008000;
+      margin-top: 0;
     }
   </style>
 </head>
 <body>
-  <!-- Menú lateral -->
-  <!-- <iframe src="menu.html" class="menu-frame"></iframe> -->
+
+  <!-- Logo superior izquierdo -->
+  <div class="logo-container">
+    <img src="Nidec ACIM Logo.png" alt="Logo de la empresa">
+  </div>
 
   <main>
     <div class="scanner">
@@ -76,7 +117,7 @@
         <p><strong>Producto:</strong> Motor ACIM XYZ</p>
         <p><strong>Lote:</strong> 12345-A</p>
         <p><strong>Fecha:</strong> 09/10/2025</p>
-        <button id="printBtn">Imprimir Etiqueta</button>
+        <button id="printBtn">🖨️ Imprimir Etiqueta</button>
       </div>
     </div>
   </main>
@@ -101,7 +142,8 @@
     printBtn.addEventListener('click', () => {
       const etiqueta = labelDisplay.innerHTML;
       const ventana = window.open('', '', 'width=400,height=400');
-      ventana.document.write('<html><head><title>Imprimir Etiqueta</title></head><body>');
+      ventana.document.write('<html><head><title>Imprimir Etiqueta</title></head><body style="font-family: Segoe UI; color:#008000;">');
+      ventana.document.write('<h2>Etiqueta</h2>');
       ventana.document.write(etiqueta);
       ventana.document.write('</body></html>');
       ventana.document.close();
@@ -110,3 +152,4 @@
   </script>
 </body>
 </html>
+
