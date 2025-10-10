@@ -1,155 +1,390 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Sistema de Escaneo de Etiquetas</title>
+  <meta charset="utf-8" />
+  <title>Generador de Etiquetas - Vista + ZPL</title>
+
+  <!-- JsBarcode for Code128 -->
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <!-- QRCode generation for preview -->
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <style>
-    body {
-      margin: 0;
-      background-color: #ffffff;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      position: relative;
+    :root{
+      --green:#008000;
+      --green-bright:#00b300;
+      --bg:#ffffff;
+      --text:#000;
+    }
+    html,body{height:100%; margin:0; background:var(--bg); font-family: "Segoe UI", Tahoma, sans-serif; color:var(--text);}
+    .container{max-width:1100px; margin:24px auto; padding:16px; display:flex; gap:20px; align-items:flex-start;}
+    .form {
+      width:360px;
+      border:2px solid var(--green);
+      border-radius:10px;
+      padding:18px;
+      box-shadow:0 6px 16px rgba(0,0,0,0.08);
+      background:#fff;
+    }
+    .form h2{color:var(--green); margin:6px 0 14px;}
+    label{display:block; margin-top:10px; font-weight:600;}
+    input[type="text"], input[type="date"], input[type="number"]{
+      width:100%; padding:10px; margin-top:6px; border:2px solid var(--green); border-radius:6px; box-sizing:border-box;
+    }
+    .small-row{display:flex; gap:8px;}
+    .small-row input{flex:1;}
+    button{
+      margin-top:14px; padding:10px 14px; border-radius:6px; border:none;
+      background:var(--green); color:#fff; cursor:pointer; font-weight:700;
+    }
+    button.secondary{background:#444; margin-left:8px;}
+    .preview-wrap{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:12px;
+      align-items:flex-start;
     }
 
-    /* Logo en la esquina superior izquierda */
-    .logo-container {
-      position: absolute;
-      top: 20px;
-      left: 20px;
+    /* Etiqueta preview styling (mimic photo) */
+    .label-preview {
+      width:760px; /* visual width */
+      min-height:220px;
+      border-radius:8px;
+      border:2px solid #ccc;
+      padding:12px;
+      box-sizing:border-box;
+      background:#fff;
+      display:grid;
+      grid-template-columns: 1fr 210px;
+      grid-template-rows: auto 1fr;
+      gap:6px;
+      font-size:14px;
+      box-shadow:0 8px 20px rgba(0,0,0,0.06);
     }
 
-    .logo-container img {
-      height: 60px;
-      width: auto;
-    }
+    .top-left { grid-column:1; grid-row:1; display:flex; flex-direction:column; gap:4px;}
+    .top-right{ grid-column:2; grid-row:1; display:flex; justify-content:center; align-items:flex-start; padding-left:6px;}
+    .center-left{ grid-column:1; grid-row:2; display:flex; flex-direction:column; gap:6px;}
+    .center-right{ grid-column:2; grid-row:2; display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:flex-start;}
 
-    main {
-      padding: 20px;
-      background-color: #ffffff;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
+    .title{font-weight:800; font-size:16px;}
+    .subtitle{font-size:13px; color:#222;}
+    .field-row{display:flex; align-items:center; gap:8px;}
+    .field-row .label{width:70px; font-weight:800;}
+    .barcode-area{border-top:1px solid #ddd; padding-top:8px;}
+    .logo-inline{height:36px;}
+    .qr-box{width:120px; height:120px; display:flex; align-items:center; justify-content:center; border:1px solid #ddd; padding:6px;}
 
-    .scanner {
-      background: #ffffff;
-      border-radius: 12px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-      padding: 40px;
-      max-width: 500px;
-      width: 100%;
-      text-align: center;
-      border: 2px solid #008000;
-    }
-
-    h2 {
-      color: #008000;
-      margin-bottom: 20px;
-    }
-
-    input[type="text"] {
-      width: 80%;
-      padding: 12px;
-      font-size: 1.1em;
-      border: 2px solid #008000;
-      border-radius: 6px;
-      text-align: center;
-      outline: none;
-      transition: box-shadow 0.3s, border 0.3s;
-    }
-
-    input[type="text"]:focus {
-      border-color: #00b300;
-      box-shadow: 0 0 6px #00b300;
-    }
-
-    button {
-      margin-top: 15px;
-      padding: 10px 20px;
-      font-size: 1em;
-      border: none;
-      border-radius: 6px;
-      background-color: #008000;
-      color: #ffffff;
-      cursor: pointer;
-      transition: background 0.3s, transform 0.1s;
-    }
-
-    button:hover {
-      background-color: #00b300;
-      transform: scale(1.03);
-    }
-
-    .label-display {
-      margin-top: 30px;
-      padding: 15px;
-      border: 2px solid #008000;
-      border-radius: 10px;
-      background-color: #f9fff9;
-      display: none;
-      text-align: left;
-    }
-
-    .label-display h3 {
-      color: #008000;
-      margin-top: 0;
+    /* print-friendly small */
+    @media print {
+      body{background:#fff;}
+      .container{box-shadow:none;}
+      button{display:none;}
+      .form{display:none;}
+      .label-preview{width:100%; box-shadow:none; border:none;}
     }
   </style>
 </head>
 <body>
+  <div class="container">
+    <div class="form">
+      <h2>Escaneo / Datos</h2>
 
-  <!-- Logo superior izquierdo -->
-  <div class="logo-container">
-    <img src="Nidec ACIM Logo.png" alt="Logo de la empresa">
-  </div>
+      <label for="qrInput">Escanea el QR:</label>
+      <input id="qrInput" type="text" placeholder="Pega o escanea aquí el valor del QR">
 
-  <main>
-    <div class="scanner">
-      <h2>Escaneo de Etiquetas</h2>
-      <input type="text" id="barcodeInput" placeholder="Escanee o escriba el código aquí" autofocus>
-      <br>
-      <button id="viewBtn">Visualizar Etiqueta</button>
+      <label for="codeInput">Code (dato separado):</label>
+      <input id="codeInput" type="text" placeholder="Code">
 
-      <div id="labelDisplay" class="label-display">
-        <h3>Etiqueta</h3>
-        <p><strong>Código:</strong> <span id="codeValue"></span></p>
-        <p><strong>Producto:</strong> Motor ACIM XYZ</p>
-        <p><strong>Lote:</strong> 12345-A</p>
-        <p><strong>Fecha:</strong> 09/10/2025</p>
-        <button id="printBtn">🖨️ Imprimir Etiqueta</button>
+      <div class="small-row">
+        <div style="flex:1">
+          <label for="lotInput">Lote:</label>
+          <input id="lotInput" type="text" placeholder="Lote" value="711662">
+        </div>
+        <div style="width:120px">
+          <label for="dateInput">Fecha:</label>
+          <input id="dateInput" type="date" value="">
+        </div>
+      </div>
+
+      <label for="qtyInput">Quantity:</label>
+      <input id="qtyInput" type="number" value="1" min="1">
+
+      <label for="titleInput">Título / Desc:</label>
+      <input id="titleInput" type="text" placeholder="Inversor Inverter" value="Inversor Inverter - REV. C SELECTECH SIPK 1HP 240V">
+
+      <div style="margin-top:10px; display:flex; gap:8px;">
+        <button id="previewBtn">Generar Vista Previa</button>
+        <button id="printZplBtn" class="secondary">Imprimir en Zebra (USB)</button>
+        <button id="downloadZplBtn" class="secondary">Descargar ZPL</button>
+      </div>
+
+      <p style="font-size:12px; color:#666; margin-top:8px;">
+        Nota: Para imprimir por USB se recomienda instalar <strong>Zebra Browser Print</strong> en la PC con la impresora.
+      </p>
+
+      <hr style="margin-top:12px;">
+      <h4>Logo en impresión</h4>
+      <p style="font-size:13px; color:#333;">
+        Si quieres que el logo aparezca en la impresión ZPL, convierte tu imagen a formato ZPL (bitmap) y pega el bloque ZPL en el cuadro abajo (opcional).
+      </p>
+      <textarea id="zplLogoInput" rows="6" placeholder="Pegue aquí el bloque ZPL del logo (opcional)"></textarea>
+      <p style="font-size:12px; color:#666;">Consejo: usa herramientas online "image to zpl" para generar el bloque ^GF / ^DG y péguelo aquí.</p>
+    </div>
+
+    <div class="preview-wrap">
+      <h3 style="margin:0 0 6px 0; color:var(--green);">Vista previa de etiqueta</h3>
+
+      <!-- Label preview -->
+      <div class="label-preview" id="labelPreview">
+        <div class="top-left">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div>
+              <div class="title" id="pvTitle">Inversor Inverter</div>
+              <div class="subtitle" id="pvSubtitle">REV. C SELECTECH SIPK 1HP 240V</div>
+            </div>
+            <img id="pvLogo" class="logo-inline" src="logo.png" alt="logo" onerror="this.style.display='none'">
+          </div>
+
+          <div style="margin-top:6px;" class="field-row">
+            <div style="flex:1">
+              <div style="font-weight:800; font-size:12px;">LOT</div>
+              <div id="pvLot" style="font-size:16px;">711662</div>
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:800; font-size:12px;">CODE</div>
+              <div id="pvCode" style="font-size:16px;">511M28135</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="top-right">
+          <!-- top right barcode (small) -->
+          <svg id="pvTopBarcode" style="width:180px; height:48px;"></svg>
+        </div>
+
+        <div class="center-left">
+          <div class="barcode-area">
+            <!-- big barcode -->
+            <svg id="pvBigBarcode" style="width:100%; height:70px;"></svg>
+            <div id="pvBarcodeText" style="text-align:center; font-weight:700; margin-top:6px;"></div>
+          </div>
+
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px;">
+            <div>
+              <div style="font-weight:700; font-size:12px;">Made in Monterrey</div>
+              <div style="font-size:13px; color:#333;">emabraco / Nidec</div>
+            </div>
+
+            <div style="text-align:right;">
+              <div style="font-weight:700; font-size:12px;">QUANTITY</div>
+              <div id="pvQty" style="font-size:20px; font-weight:900;">4</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="center-right">
+          <div class="qr-box" id="pvQrBox"></div>
+          <div style="margin-top:8px; text-align:center;">
+            <div style="font-weight:700;">DATE</div>
+            <div id="pvDate">22/08/2025</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ZPL output -->
+      <div style="margin-top:8px; width:100%;">
+        <h4 style="margin:6px 0;">ZPL generado</h4>
+        <textarea id="zplOutput" style="width:100%; height:200px; font-family:monospace;"></textarea>
       </div>
     </div>
-  </main>
+  </div>
 
-  <script>
-    const viewBtn = document.getElementById('viewBtn');
-    const labelDisplay = document.getElementById('labelDisplay');
-    const barcodeInput = document.getElementById('barcodeInput');
-    const codeValue = document.getElementById('codeValue');
-    const printBtn = document.getElementById('printBtn');
+<script>
+/* Helpers */
+function formatDateForDisplay(isoDate){
+  if(!isoDate) return "";
+  const d = new Date(isoDate);
+  if(isNaN(d)) return isoDate;
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
 
-    viewBtn.addEventListener('click', () => {
-      const code = barcodeInput.value.trim();
-      if (code === "") {
-        alert("Por favor, escanee o escriba un código de barras.");
+/* Main generation */
+const previewBtn = document.getElementById('previewBtn');
+const printZplBtn = document.getElementById('printZplBtn');
+const downloadZplBtn = document.getElementById('downloadZplBtn');
+
+previewBtn.addEventListener('click', generatePreviewAndZPL);
+downloadZplBtn.addEventListener('click', () => {
+  const zpl = document.getElementById('zplOutput').value;
+  const blob = new Blob([zpl], {type:'text/plain'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'etiqueta.zpl'; a.click();
+  URL.revokeObjectURL(url);
+});
+
+function generatePreviewAndZPL(){
+  const qr = document.getElementById('qrInput').value.trim();
+  const code = document.getElementById('codeInput').value.trim();
+  const lot = document.getElementById('lotInput').value.trim();
+  const dateIso = document.getElementById('dateInput').value;
+  const qty = document.getElementById('qtyInput').value || '1';
+  const title = document.getElementById('titleInput').value || '';
+  const zplLogoBlock = document.getElementById('zplLogoInput').value || '';
+
+  // Update preview fields
+  document.getElementById('pvTitle').textContent = title || '';
+  document.getElementById('pvSubtitle').textContent = '';
+  document.getElementById('pvLot').textContent = lot || '';
+  document.getElementById('pvCode').textContent = code || '';
+  document.getElementById('pvQty').textContent = qty;
+  document.getElementById('pvDate').textContent = formatDateForDisplay(dateIso);
+
+  // Generate QR in preview (replace)
+  const qrBox = document.getElementById('pvQrBox');
+  qrBox.innerHTML = '';
+  if(qr){
+    new QRCode(qrBox, { text: qr, width: 110, height:110, correctLevel: QRCode.CorrectLevel.H });
+  } else {
+    qrBox.innerHTML = '<div style="color:#999;">No QR</div>';
+  }
+
+  // Barcodes: top small and big
+  try {
+    JsBarcode("#pvTopBarcode", code || qr || ' ', { format:"CODE128", width:1.2, height:36, displayValue:false, margin:0 });
+    JsBarcode("#pvBigBarcode", qr || code || ' ', { format:"CODE128", width:2.5, height:60, displayValue:false, margin:0 });
+    document.getElementById('pvBarcodeText').textContent = qr || code || '';
+  } catch(e){
+    console.error(e);
+  }
+
+  // Build ZPL
+  // We will create a 600 dots width label (approx). Adjust sizes to your printer/label width.
+  // Use ^FO positions to place elements similar to preview.
+  // Include optional logo block if user pasted it into zplLogoInput.
+  const zplParts = [];
+  zplParts.push('^XA');
+  // If user provided an image ZPL block (e.g. ^DG...), append it before using ^XG
+  if(zplLogoBlock){
+    zplParts.push(zplLogoBlock);
+  }
+  // Label width (set to 600)
+  zplParts.push('^PW600');
+  // Optional draw a thin outer box
+  zplParts.push('^LRN');
+  // If logo provided and named LOGO.GRF via ^DG, print it top-left: ^FO20,10^XGLOGO.GRF,1,1^FS
+  if(zplLogoBlock){
+    zplParts.push('^FO20,10^XGLOGO.GRF,1,1^FS');
+  }
+  // Title top-left
+  zplParts.push(`^FO20,10^A0N,36,36^FD${escapeZPL(title)}^FS`);
+  // Top-right small barcode (CODE128)
+  // scale: place near x=360,y=8
+  if(code){
+    zplParts.push(`^FO360,8^BY2^BCN,50,Y,N,N^FD${escapeZPL(code)}^FS`);
+  }
+  // LOT and CODE fields
+  zplParts.push(`^FO20,60^A0N,30,30^FDLot:^FS`);
+  zplParts.push(`^FO110,60^A0N,30,30^FD${escapeZPL(lot)}^FS`);
+
+  zplParts.push(`^FO20,98^A0N,30,30^F DCode:^FS`.replace('F D','FD')); // avoid broken sequences
+  zplParts.push(`^FO110,98^A0N,30,30^FD${escapeZPL(code)}^FS`);
+
+  // Big barcode (from QR value if present, else code) - use Code128
+  const bigBarcodeData = qr || code || '';
+  if(bigBarcodeData){
+    zplParts.push(`^FO20,140^BY3^BCN,110,Y,N,N^FD${escapeZPL(bigBarcodeData)}^FS`);
+  }
+
+  // Barcode text underneath
+  zplParts.push(`^FO20,260^A0N,28,28^FD${escapeZPL(bigBarcodeData)}^FS`);
+
+  // Quantity and small info
+  zplParts.push(`^FO420,170^A0N,30,30^FDQUANTITY^FS`);
+  zplParts.push(`^FO520,170^A0N,48,48^FD${escapeZPL(qty)}^FS`);
+
+  // QR code in bottom-right using ^BQN
+  if(qr){
+    // place at x=460,y=20 (adjust)
+    zplParts.push(`^FO460,18^BQN,2,6^FDLA,${escapeZPL(qr)}^FS`);
+  }
+
+  // Date
+  zplParts.push(`^FO420,260^A0N,28,28^FDDATE:^FS`);
+  zplParts.push(`^FO500,260^A0N,28,28^FD${formatDateForDisplay(dateIso)}^FS`);
+
+  zplParts.push('^XZ');
+
+  const zpl = zplParts.join('\r\n');
+  document.getElementById('zplOutput').value = zpl;
+}
+
+/* Escape helper for ZPL (simple) */
+function escapeZPL(s){
+  if(!s) return '';
+  return String(s).replace(/\^/g,'').replace(/\r?\n/g,' ');
+}
+
+/* Printing via Browser Print (Zebra) if available, else fallback to download */
+printZplBtn.addEventListener('click', async () => {
+  const zpl = document.getElementById('zplOutput').value;
+  if(!zpl) { alert('Genera la vista previa primero.'); return; }
+
+  // Try to use Browser Print if available
+  try {
+    if(typeof BrowserPrint !== 'undefined'){
+      BrowserPrint.getDefaultDevice("printer", function(printer){
+        if(!printer){
+          alert('No se detectó impresora Zebra. Verifica Browser Print.');
+          return;
+        }
+        printer.send(zpl, function(){ alert('Etiqueta enviada a la impresora Zebra.'); }, function(err){ alert('Error enviando a Zebra: '+err); });
+      }, function(e){
+        alert('Error accediendo a Browser Print: ' + e);
+      });
+      return;
+    } else {
+      // try to load BrowserPrint script on the fly
+      await loadScript('http://localhost:9101/BrowserPrint-3.0.216.min.js');
+      if(typeof BrowserPrint !== 'undefined'){
+        BrowserPrint.getDefaultDevice("printer", function(printer){
+          if(!printer){
+            alert('No se detectó impresora Zebra. Verifica Browser Print.');
+            return;
+          }
+          printer.send(zpl, function(){ alert('Etiqueta enviada a la impresora Zebra.'); }, function(err){ alert('Error enviando a Zebra: '+err); });
+        }, function(e){
+          alert('Error accediendo a Browser Print: ' + e);
+        });
         return;
       }
-      codeValue.textContent = code;
-      labelDisplay.style.display = "block";
-    });
+    }
+  } catch(err){
+    console.warn(err);
+  }
 
-    printBtn.addEventListener('click', () => {
-      const etiqueta = labelDisplay.innerHTML;
-      const ventana = window.open('', '', 'width=400,height=400');
-      ventana.document.write('<html><head><title>Imprimir Etiqueta</title></head><body style="font-family: Segoe UI; color:#008000;">');
-      ventana.document.write('<h2>Etiqueta</h2>');
-      ventana.document.write(etiqueta);
-      ventana.document.write('</body></html>');
-      ventana.document.close();
-      ventana.print();
-    });
-  </script>
+  // Fallback: download zpl
+  if(confirm('No se detectó Browser Print. ¿Deseas descargar el archivo .zpl para enviarlo manualmente?')){
+    const blob = new Blob([zpl], {type:'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'etiqueta.zpl'; a.click();
+    URL.revokeObjectURL(url);
+  }
+});
+
+function loadScript(src){
+  return new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+</script>
 </body>
 </html>
+
 
