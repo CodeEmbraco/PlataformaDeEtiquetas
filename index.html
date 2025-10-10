@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Sistema de Escaneo de Etiquetas</title>
+  <link rel="stylesheet" href="menu.css">
+  <style>
+    main {
+      margin-left: 220px;
+      padding: 20px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f6fa;
+      height: 100vh;
+    }
+
+    .scanner {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 30px;
+      max-width: 500px;
+      margin: 50px auto;
+      text-align: center;
+    }
+
+    input[type="text"] {
+      width: 80%;
+      padding: 10px;
+      font-size: 1.1em;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      text-align: center;
+    }
+
+    button {
+      margin-top: 15px;
+      padding: 10px 20px;
+      font-size: 1em;
+      border: none;
+      border-radius: 5px;
+      background-color: #0078d7;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    button:hover {
+      background-color: #005fa3;
+    }
+
+    .label-display {
+      margin-top: 30px;
+      padding: 15px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      background-color: #fafafa;
+      display: none;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <!-- Menú lateral -->
+  <iframe src="menu.html" class="menu-frame"></iframe>
+
+  <main>
+    <div class="scanner">
+      <h2>Escaneo de Etiquetas</h2>
+      <input type="text" id="barcodeInput" placeholder="Escanee o escriba el código aquí" autofocus>
+      <br>
+      <button id="viewBtn">Visualizar Etiqueta</button>
+
+      <div id="labelDisplay" class="label-display">
+        <h3>Etiqueta</h3>
+        <p><strong>Código:</strong> <span id="codeValue"></span></p>
+        <p><strong>Producto:</strong> Motor ACIM XYZ</p>
+        <p><strong>Lote:</strong> 12345-A</p>
+        <p><strong>Fecha:</strong> 09/10/2025</p>
+        <button id="printBtn">Imprimir Etiqueta</button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const viewBtn = document.getElementById('viewBtn');
+    const labelDisplay = document.getElementById('labelDisplay');
+    const barcodeInput = document.getElementById('barcodeInput');
+    const codeValue = document.getElementById('codeValue');
+    const printBtn = document.getElementById('printBtn');
+
+    viewBtn.addEventListener('click', () => {
+      const code = barcodeInput.value.trim();
+      if (code === "") {
+        alert("Por favor, escanee o escriba un código de barras.");
+        return;
+      }
+      codeValue.textContent = code;
+      labelDisplay.style.display = "block";
+    });
+
+    printBtn.addEventListener('click', () => {
+      const etiqueta = labelDisplay.innerHTML;
+      const ventana = window.open('', '', 'width=400,height=400');
+      ventana.document.write('<html><head><title>Imprimir Etiqueta</title></head><body>');
+      ventana.document.write(etiqueta);
+      ventana.document.write('</body></html>');
+      ventana.document.close();
+      ventana.print();
+    });
+  </script>
+</body>
+</html>
