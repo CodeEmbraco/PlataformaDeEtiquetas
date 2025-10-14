@@ -263,6 +263,7 @@ function generatePreviewAndZPL(){
     }
 
 
+    // (14.5 x 5.5)
     // --- 3. Build ZPL (Código de Impresión) ---
     const zplParts = [];
     zplParts.push('^XA');
@@ -277,19 +278,19 @@ function generatePreviewAndZPL(){
     
     // 1. Código de Barras Completo - Centro/Arriba
     if(fullCode){
-        zplParts.push(`^FO80,60^BY3^BCN,120,Y,N,N^FD${escapeZPL(fullCode)}^FS`);
+        zplParts.push(`^FO200,130^BY3^BCN,120,Y,N,N^FD${escapeZPL(fullCode)}^FS`);
     }
 
     // 2. Código (9 dígitos) - Esquina inferior izquierda
-    zplParts.push(`^FO20,220^A0N,40,40^FD${escapeZPL(code)}^FS`);
+    zplParts.push(`^FO115,290^A0N,40,40^FD${escapeZPL(code)}^FS`);
 
     // 3. Cambio: Fecha Actual con prefijo "Fecha de Reimpresion:" - Centro inferior
     // La fuente es pequeña (20x20 dots), el texto es largo, y la posición X=180 es más céntrica.
     const fechaTextoZPL = `Fecha de Reimpresion: ${todayDate}`;
-    zplParts.push(`^FO180,235^A0N,20,20^FD${escapeZPL(fechaTextoZPL)}^FS`);
+    zplParts.push(`^FO350,305^A0N,20,20^FD${escapeZPL(fechaTextoZPL)}^FS`);
 
     // 4. Lote (8 dígitos) - Esquina inferior derecha
-    zplParts.push(`^FO400,220^A0N,40,40^FD${escapeZPL(lot)}^FS`);
+    zplParts.push(`^FO700,290^A0N,40,40^FD${escapeZPL(lot)}^FS`);
     
     zplParts.push('^XZ');
 
@@ -313,7 +314,7 @@ printZplBtn.addEventListener('click', () => {
     
     try {
         if(typeof BrowserPrint === 'undefined'){
-            loadScript('http://http://localhost:9101/BrowserPrint-3.0.216.min.js')
+            loadScript('./BrowserPrint-3.0.216.min.js')
                 .then(() => attemptPrint(zpl))
                 .catch(() => alert('Error: No se pudo cargar Zebra Browser Print.'));
         } else {
