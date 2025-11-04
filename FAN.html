@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Etiquetas FAN — Generador DataMatrix</title>
+
+  <style>
+    :root{
+      --green:#006d3c;
+      --bg:#f4f7f4;
+      --panel:#ffffff;
+    }
+    body{
+      margin:0;
+      font-family: "Segoe UI", Tahoma, Arial, sans-serif;
+      background:var(--bg);
+      color:#111;
+      display:flex;
+      justify-content:center;
+      padding:24px;
+    }
+
+    .app {
+      width:980px;
+      display:flex;
+      gap:20px;
+      align-items:flex-start;
+    }
+
+    .card {
+      background:var(--panel);
+      border-radius:10px;
+      box-shadow:0 6px 18px rgba(0,0,0,0.08);
+      padding:18px;
+    }
+
+    .left {
+      width:360px;
+      border:2px solid var(--green);
+    }
+
+    .right {
+      flex:1;
+      border:2px solid #bbb;
+      padding:16px;
+    }
+
+    h1 { margin:0; font-size:20px; color:var(--green); }
+    label { display:block; margin-top:12px; font-weight:700; font-size:13px; }
+    input[type="text"] { width:100%; padding:8px; border-radius:6px; border:1px solid #aaa; margin-top:6px; box-sizing:border-box; }
+    .row { display:flex; gap:8px; }
+    .btn { margin-top:14px; padding:10px 12px; border-radius:6px; border:none; cursor:pointer; font-weight:700; background:var(--green); color:#fff; }
+    .btn.secondary { background:#444; }
+    .btn.ghost { background:transparent; color:var(--green); border:2px solid var(--green); }
+    .controls { margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; }
+    .hint { font-size:12px; color:#666; margin-top:10px; }
+
+    /* Preview styling (simulate 7x2 cm) */
+    .preview-frame {
+      width:560px; /* proportional to ZPL PW=560 dots */
+      height:160px; /* proportional to LL=160 dots */
+      background:#fff;
+      border:2px solid #000;
+      border-radius:6px;
+      margin-bottom:12px;
+      position:relative;
+      box-shadow:0 4px 10px rgba(0,0,0,0.08);
+      overflow:hidden;
+    }
+
+    /* Inside label: left text, right DM, logo bottom-right */
+    .label-left {
+      position:absolute;
+      left:12px;
+      top:10px;
+      bottom:10px;
+      width:360px;
+      font-family: "Courier New", monospace;
+      font-size:14px;
+      color:#000;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-start;
+      gap:6px;
+    }
+
+    .label-left .line { font-weight:700; letter-spacing:0.5px; }
+    .label-left .sub { font-weight:600; font-size:12px; color:#222; }
+
+    .label-right {
+      position:absolute;
+      right:12px;
+      top:10px;
+      width:164px;
+      height:140px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+    }
+
+    #dmCanvas { background:#fff; display:block; }
+
+    .logo-small {
+      position:absolute;
+      right:8px;
+      bottom:6px;
+      width:88px;
+      opacity:0.95;
+    }
+
+    /* ZPL textarea */
+    textarea { width:100%; height:160px; font-family:monospace; font-size:12px; margin-top:8px; }
+
+    /* Responsive */
+    @media (max-width: 1000px){
+      .app { flex-direction:column; width:100%; align-items:center; }
+      .left{ width:100%; }
+      .right{ width:100%; }
+      .preview-frame { transform:scale(0.9); transform-origin:left top; }
+    }
+
+    /* Print-friendly: hide controls when printing preview (if needed) */
+    @media print {
+      .left, .controls, .buttons-top { display:none; }
+      body { background:#fff; }
+    }
+  </style>
+
+  <!-- bwip-js for rendering DataMatrix on canvas -->
+  <script src="https://cdn.jsdelivr.net/npm/bwip-js@2.0.9/dist/bwip-js-min.js"></script>
+</head>
+<body>
+  <div class="app">
+    <!-- LEFT: form -->
+    <div class="card left">
+      <h1>Datos etiqueta FAN</h1>
+
+      <label for="sku">SKU</label>
+      <input id="sku" type="text" placeholder="Ej. EFM25SDUL04506B-H1">
+
+      <label for="batch">Batch (GC4UJ)</label>
+      <input id="batch" type="text" placeholder="Ej. GC5IKDLI">
+
+      <label for="serial">Serial</label>
+      <input id="serial" type="text" placeholder="Ej. 519700122">
+
+      <label for="fecha">Fecha</label>
+      <input id="fecha" type="text" placeholder="Ej. 28/AGO/25">
+
+      <div class="controls">
+        <button id="previewBtn" class="btn">Vista previa</button>
+        <button id="zplBtn" class="btn secondary">Generar ZPL (.zpl)</button>
+        <button id="printBtn" class="btn secondary">Imprimir (Browser Print)</button>
+        <button id="menuBtn" class="btn ghost">Volver al Menú</button>
+      </div>
+
+      <div class="hint">
+        Tamaño ZPL: <strong>7 cm × 2 cm</strong> (aprox. <em>PW=560, LL=160</em>, pensado para impresoras 203 dpi).<br>
+        El Data Matrix se muestra en la vista previa y se genera en ZPL con el comando <code>^BX</code>.
+      </div>
+    </div>
+
+    <!-- RIGHT: preview + ZPL output -->
+    <div class="card right">
+      <h1 style="margin-top:0;">Vista previa</h1>
+
+      <div class="preview-frame" id="previewFrame" aria-hidden="true">
+        <div class="label-left" id="labelLeft">
+          <div class="line" id="pv-sku">SKU: —</div>
+          <div class="sub" id="pv-batch">BATCH: —</div>
+          <div class="line" id="pv-serial">SERIAL: —</div>
+          <div class="sub" id="pv-fecha">FECHA: —</div>
+        </div>
+
+        <div class="label-right">
+          <canvas id="dmCanvas" width="140" height="140"></canvas>
+        </div>
+
+        <img src="img/logo.png" alt="Logo Nidec/Embraco" class="logo-small" id="logoImg" onerror="this.style.display='none'">
+      </div>
+
+      <h2 style="font-size:14px; margin:12px 0 6px 0; color:#333;">ZPL generado</h2>
+      <textarea id="zplOutput" readonly placeholder="Aquí aparecerá el ZPL..."></textarea>
+    </div>
+  </div>
+
+<script>
+/*
+  fan.html
+  - DataMatrix preview using bwip-js
+  - ZPL generation using ^BX (DataMatrix)
+  - Buttons: Vista previa, Generar ZPL (download), Imprimir (Browser Print with fallback)
+  - Size assumptions: 203 dpi printer. PW ~ 560 dots (7 cm), LL ~160 dots (2 cm)
+*/
+
+/* Helpers */
+function escapeZPL(s){
+  if(!s) return '';
+  return String(s).replace(/\^/g,'').replace(/~/g,'').replace(/\r?\n/g,' ');
+}
+
+/* Elements */
+const skuEl = document.getElementById('sku');
+const batchEl = document.getElementById('batch');
+const serialEl = document.getElementById('serial');
+const fechaEl = document.getElementById('fecha');
+
+const previewBtn = document.getElementById('previewBtn');
+const zplBtn = document.getElementById('zplBtn');
+const printBtn = document.getElementById('printBtn');
+const menuBtn = document.getElementById('menuBtn');
+
+const pvSku = document.getElementById('pv-sku');
+const pvBatch = document.getElementById('pv-batch');
+const pvSerial = document.getElementById('pv-serial');
+const pvFecha = document.getElementById('pv-fecha');
+
+const dmCanvas = document.getElementById('dmCanvas');
+const zplOutput = document.getElementById('zplOutput');
+
+/* DataMatrix render with bwip-js */
+function renderDataMatrixToCanvas(text){
+  try {
+    // bwip-js renders to canvas; scale (scale parameter) chosen to fit 140x140 canvas
+    // We clear first
+    const canvas = dmCanvas;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    // Use bwip-js to draw datamatrix
+    bwipjs.toCanvas(canvas, {
+      bcid:        'datamatrix',   // Barcode type
+      text:        text,           // Data to encode
+      scale:       4,              // 1..10 mostly; adjust to fit canvas
+      includecheck: false,
+      padding:     0
+    });
+  } catch (err) {
+    console.error('Error rendering DataMatrix:', err);
+    // fallback: draw text
+    const ctx = dmCanvas.getContext('2d');
+    ctx.fillStyle = '#000';
+    ctx.fillText('ERR',10,20);
+  }
+}
+
+/* Build ZPL for 7x2 cm label */
+function buildZPL(sku, batch, serial, fecha){
+  // Data for datamatrix
+  const dmData = `${sku};${batch};${serial};${fecha}`;
+
+  // label width & length in dots (assuming 203 dpi)
+  // 7 cm = 2.7559 in * 203 = ~560 dots
+  // 2 cm = 0.7874 in * 203 = ~160 dots
+  // adjust if your printer is 300 dpi etc.
+  const PW = 560;
+  const LL = 160;
+
+  // Choose DataMatrix module size h (module width in dots)
+  // ^BX command: ^BXo,h,s,c,r,f,g
+  // Example usage: ^FO420,8^BXN,4,200,,^FDdata^FS where 4 = module size
+  // We'll place DataMatrix at right side ~ x=380,y=8 (tune if needed)
+  const dmModule = 4; // module size in dots — adjust to scale datamatrix
+  const dmQuality = 200; // ECC 200
+  // Coordinates
+  const dmX = 380;
+  const dmY = 8;
+
+  // Text coordinates left side
+  const skuY = 8 + 0 * 20;   // top offset
+  const batchY = 28 + 0 * 20;
+  const serialY = 48;
+  const fechaY = 68;
+
+  const zpl = [
+    '^XA',
+    `^PW${PW}`,
+    `^LL${LL}`,
+    // Optional: set font 0
+    '^CF0,20',
+    // SKU, BATCH, SERIAL, FECHA (left column)
+    `^FO20,${skuY}^FD${escapeZPL('SKU: '+(sku||''))}^FS`,
+    `^FO20,${batchY}^FD${escapeZPL('BATCH: '+(batch||''))}^FS`,
+    `^FO20,${serialY}^FD${escapeZPL('SERIAL: '+(serial||''))}^FS`,
+    `^FO20,${fechaY}^FD${escapeZPL('FECHA: '+(fecha||''))}^FS`,
+    // DataMatrix (right column). Use ^BX for Data Matrix.
+    // Format: ^FOx,y^BXo,h,s,c,r,f,g^FDdata^FS
+    `^FO${dmX},${dmY}^BXN,${dmModule},${dmQuality},,,^FD${escapeZPL(dmData)}^FS`,
+    // If you want to print an image logo that was uploaded to printer as LOGO.GRF:
+    // '^FO480,120^XGLOGO.GRF,1,1^FS'
+    '^XZ'
+  ].join('\r\n');
+
+  return zpl;
+}
+
+/* Preview handler */
+previewBtn.addEventListener('click', () => {
+  const sku = skuEl.value.trim();
+  const batch = batchEl.value.trim();
+  const serial = serialEl.value.trim();
+  const fecha = fechaEl.value.trim();
+
+  if(!sku || !batch || !serial || !fecha){
+    alert('Por favor completa los 4 campos: SKU, Batch, Serial y Fecha.');
+    return;
+  }
+
+  // Update text on left
+  pvSku.textContent = `SKU: ${sku}`;
+  pvBatch.textContent = `BATCH: ${batch}`;
+  pvSerial.textContent = `SERIAL: ${serial}`;
+  pvFecha.textContent = `FECHA: ${fecha}`;
+
+  // Render DataMatrix on canvas
+  const dmData = `${sku};${batch};${serial};${fecha}`;
+  renderDataMatrixToCanvas(dmData);
+
+  // Generate ZPL and show in textarea (preview)
+  const zpl = buildZPL(sku,batch,serial,fecha);
+  zplOutput.value = zpl;
+
+  // Make preview visible (already visible by default)
+  document.getElementById('previewFrame').scrollIntoView({behavior:'smooth'});
+});
+
+/* Download ZPL */
+zplBtn.addEventListener('click', () => {
+  const sku = skuEl.value.trim();
+  const batch = batchEl.value.trim();
+  const serial = serialEl.value.trim();
+  const fecha = fechaEl.value.trim();
+
+  if(!sku || !batch || !serial || !fecha){
+    alert('Genera la vista previa primero (completa los campos).');
+    return;
+  }
+  const zpl = buildZPL(sku,batch,serial,fecha);
+  const blob = new Blob([zpl], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `etiqueta_fan_${serial}.zpl`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+});
+
+/* Print via Browser Print (attempt), else ask to download */
+printBtn.addEventListener('click', async () => {
+  const sku = skuEl.value.trim();
+  const batch = batchEl.value.trim();
+  const serial = serialEl.value.trim();
+  const fecha = fechaEl.value.trim();
+
+  if(!sku || !batch || !serial || !fecha){
+    alert('Genera la vista previa primero (completa los campos).');
+    return;
+  }
+
+  const zpl = buildZPL(sku,batch,serial,fecha);
+
+  // Try to load Browser Print if not present
+  try {
+    // quick availability check
+    const resp = await fetch('http://localhost:9101/available').catch(()=>null);
+    if(resp && resp.ok){
+      if(typeof BrowserPrint === 'undefined'){
+        await loadScript('http://localhost:9101/BrowserPrint-3.0.216.min.js');
+      }
+      if(typeof BrowserPrint !== 'undefined'){
+        BrowserPrint.getDefaultDevice('printer', function(printer){
+          if(!printer){ alert('No se detectó impresora Zebra desde Browser Print.'); return; }
+          printer.send(zpl, function(){ alert('Etiqueta enviada a Zebra.'); }, function(err){ alert('Error al enviar a Zebra: '+err); });
+        }, function(err){ alert('Error al acceder Browser Print: '+err); });
+        return;
+      }
+    }
+  } catch(e){
+    console.warn('Browser Print not available', e);
+  }
+
+  // fallback: download .zpl
+  if(confirm('No se detectó Browser Print. ¿Deseas descargar el archivo .zpl para imprimir manualmente?')){
+    const blob = new Blob([zpl], {type:'text/plain;charset=utf-8'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `etiqueta_fan_${serial}.zpl`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+});
+
+/* Load external script helper */
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = resolve;
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+/* Menu button */
+menuBtn.addEventListener('click', ()=> {
+  window.location.href = 'menu.html';
+});
+</script>
+</body>
+</html>
